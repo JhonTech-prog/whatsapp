@@ -11,7 +11,7 @@ app.use(express.json());
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
 
-// Route for GET requests
+// Route for GET requests (WhatsApp Verification)
 app.get('/', (req, res) => {
   const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
 
@@ -23,7 +23,7 @@ app.get('/', (req, res) => {
   }
 });
 
-// Route for POST requests
+// Route for POST requests (WhatsApp Events)
 app.post('/', (req, res) => {
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
   console.log(`\n\nWebhook received ${timestamp}\n`);
@@ -31,7 +31,18 @@ app.post('/', (req, res) => {
   res.status(200).end();
 });
 
+// --- NOVO BLOCO PARA O GITHUB ---
+// Route for GitHub POST requests (Rota separada!)
+app.post('/webhook-github', (req, res) => {
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    console.log(`\n\nGitHub Webhook received ${timestamp}\n`);
+    // Aqui você pode adicionar a lógica para processar o push/PR
+    res.status(200).end();
+});
+// ------------------------------
+
 // Start the server
 app.listen(port, () => {
   console.log(`\nListening on port ${port}\n`);
 });
+
