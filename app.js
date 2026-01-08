@@ -1,14 +1,22 @@
 const express = require('express');
 const app = express();
 
-// Middleware para ler JSON
+// 1. Middleware para ler JSON (Obrigatório)
 app.use(express.json());
 
-// Configurações
+// 2. ADICIONANDO O SEU CÓDIGO (CORS)
+// Isso permite que o servidor aceite requisições de outros domínios
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
+// Configurações de conexão
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513"; // Seu token fixado
 
-// 1. ROTA DE VERIFICAÇÃO (GET)
+// 3. ROTA DE VERIFICAÇÃO (GET)
 app.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -22,26 +30,26 @@ app.get('/', (req, res) => {
   }
 });
 
-// 2. ROTA DE RECEBIMENTO (POST) - CÓDIGO COMPLETO E LIMPO
+// 4. ROTA DE RECEBIMENTO (POST)
 app.post('/', (req, res) => {
-  // Responde imediatamente ao WhatsApp
+  // Responde imediatamente ao WhatsApp (Obrigatório)
   res.status(200).send('EVENT_RECEIVED');
 
   try {
     const body = req.body;
 
-    // Verifica se existem mensagens no pacote recebido
+    // Se for uma mensagem real de texto
     if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
       const msg = body.entry[0].changes[0].value.messages[0];
       const de = msg.from;
-      const texto = msg.text?.body || "Mensagem não é texto (imagem/emoji/link)";
+      const texto = msg.text?.body || "Mensagem sem texto";
 
       console.log(`\n✅ MENSAGEM REAL RECEBIDA!`);
       console.log(`De: ${de}`);
       console.log(`Conteúdo: ${texto}`);
       console.log(`-----------------------------------\n`);
     } 
-    // Verifica se é apenas um status (entregue/lida)
+    // Se for apenas status de entrega/leitura
     else if (body.entry?.[0]?.changes?.[0]?.value?.statuses) {
       console.log("ℹ️ Status de mensagem recebido (entregue ou lida).");
     }
@@ -53,5 +61,6 @@ app.post('/', (req, res) => {
 // Inicia o servidor
 app.listen(port, () => {
   console.log(`Servidor ativo na porta ${port} em 2026`);
+  console.log(`CORS habilitado e Token configurado.`);
 });
 
