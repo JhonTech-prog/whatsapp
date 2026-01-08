@@ -1,7 +1,6 @@
 {
   "name": "whatsapp-webhook",
   "version": "1.0.0",
-  "description": "Webhook para WhatsApp com suporte a CORS",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
@@ -9,8 +8,5 @@
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5"
-  },
-  "engines": {
-    "node": ">=14.0.0"
   }
 }
