@@ -1,23 +1,26 @@
 const express = require('express');
+const cors = require('cors'); 
 const app = express();
 
-// 1. Permite que o servidor leia JSON
+// Ativa o CORS para o WhatsBulk e outras ferramentas
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
-// 2. ESSA É A PARTE QUE RESOLVE O ERRO DA "URL DA PONTE"
-// Adiciona o header Access-Control-Allow-Origin: *
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*"); // Permite qualquer site acessar
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  next();
-});
-
-// Configurações
+let minhasMensagensSalvas = [];
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 
-// 3. Rota GET (Verificação)
+// Rota para o WhatsBulk ler as mensagens
+app.get('/messages', (req, res) => {
+  res.json(minhasMensagensSalvas);
+});
+
+// Verificação do Webhook (GET)
 app.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -30,13 +33,27 @@ app.get('/', (req, res) => {
   }
 });
 
-// 4. Rota POST (WhatsApp)
+// Recebimento de mensagens (POST)
 app.post('/', (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
-  console.log("Dados recebidos:", JSON.stringify(req.body));
+  try {
+    const body = req.body;
+    if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+      const msg = body.entry[0].changes[0].value.messages[0];
+      const novaMensagem = {
+        de: msg.from,
+        texto: msg.text?.body || "Mídia",
+        data: new Date().toLocaleString("pt-BR")
+      };
+      minhasMensagensSalvas.push(novaMensagem);
+      if (minhasMensagensSalvas.length > 50) minhasMensagensSalvas.shift();
+      console.log("✅ Mensagem arquivada:", novaMensagem.texto);
+    }
+  } catch (err) {
+    console.log("❌ Erro:", err.message);
+  }
 });
 
 app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+  console.log(`Servidor rodando na porta ${port} em 2026`);
 });
-
