@@ -1,52 +1,45 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // <--- Importado primeiro
 const app = express();
 
-// 1. CONFIGURAÇÕES OBRIGATÓRIAS PARA O RENDER
-app.set('trust proxy', 1); 
+// 1. O CORS PRECISA SER O PRIMEIRO MIDDLEWARE (Resolução do 403)
+app.use(cors()); 
+app.options('*', cors()); // Habilita pre-flight para todas as rotas
 
-// 2. CONFIGURAÇÃO DE CORS (Blindagem contra Erro 403)
-app.use(cors({ origin: '*' }));
-
+// 2. HEADERS MANUAIS (Reforço para o WhatsBulk)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
-  // Resolve o problema de "pre-flight" do navegador
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   next();
 });
 
 app.use(express.json());
+app.set('trust proxy', 1);
 
-// Memória temporária para as mensagens (limpa se o Render reiniciar)
 let minhasMensagensSalvas = [];
-
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 
-// 3. ROTA DE MENSAGENS (Para o seu painel ou WhatsBulk ler)
+// Rota para o WhatsBulk ler (GET /messages)
 app.get('/messages', (req, res) => {
+  console.log("WhatsBulk solicitou mensagens...");
   res.status(200).json(minhasMensagensSalvas);
 });
 
-// 4. VERIFICAÇÃO DO WHATSAPP (GET na raiz)
+// Verificação do WhatsApp (GET /)
 app.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === verifyToken) {
-    console.log('WEBHOOK VERIFICADO!');
     return res.status(200).send(challenge);
   }
-  return res.status(403).send('Token Inválido');
+  return res.status(403).send('Erro: Token de verificação inválido');
 });
 
-// 5. RECEBIMENTO DE MENSAGENS (POST na raiz)
+// Recebimento de mensagens (POST /)
 app.post('/', (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
   try {
@@ -55,7 +48,7 @@ app.post('/', (req, res) => {
       const msg = body.entry[0].changes[0].value.messages[0];
       const novaMensagem = {
         de: msg.from,
-        texto: msg.text?.body || "Mídia recebida",
+        texto: msg.text?.body || "Mídia",
         data: new Date().toLocaleString("pt-BR")
       };
       minhasMensagensSalvas.push(novaMensagem);
@@ -63,7 +56,7 @@ app.post('/', (req, res) => {
       console.log("✅ Mensagem arquivada:", novaMensagem.texto);
     }
   } catch (err) {
-    console.log("❌ Erro ao processar:", err.message);
+    console.log("❌ Erro no processamento:", err.message);
   }
 });
 
