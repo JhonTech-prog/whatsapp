@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 
 const app = express();
-
 app.use(cors({ origin: true }));
 app.use(express.json());
 
@@ -31,18 +30,21 @@ const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
-// --- FUNÇÃO PARA PEGAR MÍDIA (CORREÇÃO DE URL 2026) ---
+// --- FUNÇÃO PARA PEGAR MÍDIA (URL FIXADA PARA 2026) ---
 async function getMediaUrl(mediaId) {
     if (!META_ACCESS_TOKEN) {
-        console.error("❌ Erro: META_ACCESS_TOKEN não configurado.");
+        console.error("❌ Erro: META_ACCESS_TOKEN ausente.");
         return null;
     }
     try {
-        // Corrigido: https:// + v21.0 + Template String correta
-        const response = await axios.get(`graph.facebook.com{mediaId}`, {
-            headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` }
+        // Construção da URL garantindo o protocolo https://
+        const metaUrl = "graph.facebook.com" + mediaId;
+        
+        const response = await axios.get(metaUrl, {
+            headers: { 'Authorization': 'Bearer ' + META_ACCESS_TOKEN }
         });
-        return response.data.url;
+        
+        return response.data.url; // Retorna o link temporário da Meta
     } catch (error) {
         console.error("❌ Erro na API da Meta:", error.response?.data || error.message);
         return null;
@@ -50,16 +52,6 @@ async function getMediaUrl(mediaId) {
 }
 
 // 3. ROTAS
-
-app.get('/messages', async (req, res) => {
-  try {
-    const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(100);
-    res.status(200).json(mensagens);
-  } catch (err) {
-    res.status(500).send("Erro ao buscar mensagens");
-  }
-});
-
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -72,12 +64,11 @@ app.post('/webhook', async (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
 
   try {
-    // ACESSO SEGURO AOS ARRAYS [0] - CORRIGIDO
-    const entry = req.body.entry && req.body.entry[0];
-    const changes = entry && entry.changes && entry.changes[0];
-    const value = changes && changes.value;
-    const messageData = value && value.messages && value.messages[0];
-    const contact = value && value.contacts && value.contacts[0];
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const messageData = value?.messages?.[0];
+    const contact = value?.contacts?.[0];
 
     if (messageData) {
       let textoConteudo = '';
@@ -89,19 +80,15 @@ app.post('/webhook', async (req, res) => {
       } 
       else if (tipo === 'image') {
           const url = await getMediaUrl(messageData.image.id);
-          textoConteudo = url || '[Link da imagem expirado/erro]';
+          textoConteudo = url || '[Erro ao obter link da imagem]';
       } 
       else if (tipo === 'audio' || tipo === 'voice') {
-          const mediaId = messageData.audio ? messageData.audio.id : (messageData.voice ? messageData.voice.id : null); 
-          if (mediaId) {
-            const url = await getMediaUrl(mediaId);
-            textoConteudo = url || '[Link do áudio expirado/erro]';
-          } else {
-            textoConteudo = '[ID de áudio não encontrado]';
-          }
+          const mediaId = messageData.audio?.id || messageData.voice?.id; 
+          const url = await getMediaUrl(mediaId);
+          textoConteudo = url || '[Erro ao obter link do áudio]';
       }
       else {
-          textoConteudo = `[Mídia: ${tipo}]`;
+          textoConteudo = `[Tipo: ${tipo}]`;
       }
 
       const novaMensagem = new Mensagem({
@@ -121,6 +108,4 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Servidor rodando na porta: ${port}`);
-});
+app.listen(port, () => console.log(`🚀 Servidor rodando na porta: ${port}`));
