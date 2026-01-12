@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require = require('cors');
 const app = express();
 
 // 1. CONFIGURAÇÕES INICIAIS E CORS
@@ -51,30 +51,42 @@ app.post('/webhook', (req, res) => {
     const body = req.body;
 
     if (body.entry && 
-        body.entry[0].changes && 
-        body.entry[0].changes[0].value.messages && 
-        body.entry[0].changes[0].value.messages[0]) {
+        body.entry.changes && 
+        body.entry.changes.value.messages && 
+        body.entry.changes.value.messages) {
       
-      const msg = body.entry[0].changes[0].value.messages[0];
-      const contacts = body.entry[0].changes[0].value.contacts;
-      const nomeRemetente = contacts ? contacts[0].profile.name : "Desconhecido";
+      const msg = body.entry.changes.value.messages;
+      const contacts = body.entry.changes.value.contacts;
+      const nomeRemetente = contacts ? contacts.profile.name : "Desconhecido";
       
+      // Lógica aprimorada para o conteúdo da mensagem:
+      let conteudoTexto = "Tipo de mensagem desconhecido";
+      if (msg.text) {
+          conteudoTexto = msg.text.body;
+      } else if (msg.type === "image") {
+          conteudoTexto = "[Imagem]";
+      } else if (msg.type === "audio") {
+          conteudoTexto = "[Áudio]";
+      } else if (msg.type === "video") {
+          conteudoTexto = "[Vídeo]";
+      } else if (msg.type === "sticker") {
+          conteudoTexto = "[Figurinha]";
+      }
+
       const novaMensagem = {
         id: msg.id,
         de: msg.from,
-        telefone: msg.from,      // 🚀 CRUCIAL: O que seu front-end está procurando
-        wa_id: msg.from,         // 🚀 Adicional por compatibilidade
+        telefone: msg.from,
+        wa_id: msg.from,
         nome: nomeRemetente,
-        texto: msg.text ? msg.text.body : "Mídia ou Outro tipo",
+        texto: conteudoTexto, // <-- AGORA COM O CONTEÚDO CORRETO
         tipo: msg.type,
         data: new Date().toLocaleString("pt-BR"),
-        timestamp: Math.floor(Date.now() / 1000) // Formato Unix que muitos front-ends usam
+        timestamp: Math.floor(Date.now() / 1000)
       };
 
-      // Adiciona ao início da lista
       minhasMensagensSalvas.unshift(novaMensagem);
 
-      // Mantém apenas as últimas 50
       if (minhasMensagensSalvas.length > 50) minhasMensagensSalvas.pop();
 
       console.log(`📩 MENSAGEM RECEBIDA: [${nomeRemetente}] - ${novaMensagem.texto}`);
