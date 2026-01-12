@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require = require('cors');
+const cors = require('cors');
 const app = express();
 
 // 1. CONFIGURAÇÕES INICIAIS E CORS
@@ -49,9 +49,8 @@ app.post('/webhook', (req, res) => {
 
   try {
     const body = req.body;
-
-    // 🚀 NOVO: MOSTRA O JSON BRUTO PARA DEPURAR O PROBLEMA 🚀
-    console.log("JSON Bruto Recebido:", JSON.stringify(body, null, 2));
+    // Para depurar o JSON bruto, descomente a linha abaixo:
+    // console.log("JSON Bruto Recebido:", JSON.stringify(body, null, 2));
 
     if (body.entry && 
         body.entry.changes && 
@@ -62,37 +61,25 @@ app.post('/webhook', (req, res) => {
       const contacts = body.entry.changes.value.contacts;
       const nomeRemetente = contacts ? contacts.profile.name : "Desconhecido";
       
-      // Lógica aprimorada para o conteúdo da mensagem:
-      let conteudoTexto = "Tipo de mensagem desconhecido";
-      if (msg.text) {
-          conteudoTexto = msg.text.body;
-      } else if (msg.type === "image") {
-          conteudoTexto = "[Imagem]";
-      } else if (msg.type === "audio") {
-          conteudoTexto = "[Áudio]";
-      } else if (msg.type === "video") {
-          conteudoTexto = "[Vídeo]";
-      } else if (msg.type === "sticker") {
-          conteudoTexto = "[Figurinha]";
-      }
+      let conteudoTexto = msg.text ? msg.text.body : "[Mídia ou Outro tipo]";
 
       const novaMensagem = {
         id: msg.id,
         de: msg.from,
-        telefone: msg.from,
-        wa_id: msg.from,
+        telefone: msg.from,      // CAMPO CRUCIAL PARA SEU FRONT-END
+        wa_id: msg.from,         // CAMPO ADICIONAL PARA COMPATIBILIDADE
         nome: nomeRemetente,
         texto: conteudoTexto,
         tipo: msg.type,
         data: new Date().toLocaleString("pt-BR"),
-        timestamp: Math.floor(Date.now() / 1000)
+        timestamp: Math.floor(Date.now() / 1000) // Formato Unix exigido
       };
 
       minhasMensagensSalvas.unshift(novaMensagem);
 
       if (minhasMensagensSalvas.length > 50) minhasMensagensSalvas.pop();
 
-      console.log(`📩 MENSAGEM RECEBIDA: [${nomeRemetente}] - ${novaMensagem.texto}`);
+      console.log(`📩 MENSAGEM RECEBIDA E FORMATADA: [${nomeRemetente}] - ${novaMensagem.texto}`);
     } else {
       console.log("ℹ️ Evento de status recebido.");
     }
@@ -105,3 +92,4 @@ app.post('/webhook', (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor Webhook 2026 Ativo na porta ${port}`);
 });
+
