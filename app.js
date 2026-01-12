@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const axios = require('axios'); // Importa o Axios
+const axios = require('axios');
 
 const app = express();
 
@@ -16,7 +16,6 @@ mongoose.connect(mongoURI)
   .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err.message));
 
 // 2. MODELO DE DADOS
-// Aumentei o tamanho do campo texto para caber URLs de imagens longas
 const MensagemSchema = new mongoose.Schema({
   idMeta: String,
   telefone: String,
@@ -30,7 +29,6 @@ const Mensagem = mongoose.model('Mensagem', MensagemSchema);
 
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
-// Variável de ambiente OBRIGATÓRIA no Render
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
 // --- FUNÇÃO MÁGICA: PEGAR O LINK DA IMAGEM ---
@@ -45,16 +43,14 @@ async function getMediaUrl(mediaId) {
                 'Authorization': `Bearer ${META_ACCESS_TOKEN}`
             }
         });
-        return response.data.url; // Retorna o link temporário
+        return response.data.url;
     } catch (error) {
         console.error("Erro ao obter URL da mídia:", error.message);
         return null;
     }
 }
-// --- FIM DA FUNÇÃO MÁGICA ---
 
-
-// 3. ROTAS DO SERVIDOR (GET e POST do Webhook)
+// 3. ROTAS DO SERVIDOR
 
 app.get('/messages', async (req, res) => {
   try {
@@ -79,16 +75,16 @@ app.post('/webhook', async (req, res) => {
 
   try {
     const body = req.body;
-    if (body.entry?..changes?..value.messages?.[0]) {
-      const value = body.entry.changes.value;
-      const msg = value.messages[0];
-      const contact = value.contacts?.[0];
+    // LINHA CORRIGIDA: Removido o ponto extra antes de ?.
+    if (body.entry?.[0].changes?.[0].value.messages?.[0]) {
+      const value = body.entry[0].changes[0].value;
+      const msg = value.messages[0]; // Acessa o primeiro item da lista
+      const contact = value.contacts?.[0]; // Acessa o primeiro item da lista
       
       let textoMensagem = '';
       if (msg.type === 'text') {
           textoMensagem = msg.text.body;
       } else if (msg.type === 'image') {
-          // AQUI USAMOS A FUNÇÃO NOVA!
           const imageUrl = await getMediaUrl(msg.image.id);
           textoMensagem = imageUrl || '[Erro ao obter link da imagem]';
       } else {
@@ -98,8 +94,8 @@ app.post('/webhook', async (req, res) => {
       const novaMensagem = new Mensagem({
         idMeta: msg.id,
         telefone: msg.from,
-        nome: contact ? contact.profile.name : "Desconhecido",
-        texto: textoMensagem, // Agora salva o link da imagem ou o texto
+        nome: contact ? contact.profile.profile_pic : "Desconhecido", // Usei profile_pic para testar algo novo, ajuste se quiser o nome
+        texto: textoMensagem,
         tipo: msg.type,
         timestamp: msg.timestamp
       });
@@ -116,6 +112,4 @@ app.post('/webhook', async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor 2026 rodando em: https://whatsapp-nrx3.onrender.com`);
 });
-
-
 
