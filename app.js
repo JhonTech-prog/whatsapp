@@ -3,7 +3,7 @@ const cors = require('cors');
 const app = express();
 
 // 1. CONFIGURAÇÕES INICIAIS E CORS (Libera para o seu painel ver as mensagens)
-app.use(cors());
+app.use(cors({ origin: true })); // Libera acesso de qualquer front-end (incluindo seu site)
 app.use(express.json());
 app.set('trust proxy', 1);
 
@@ -14,12 +14,14 @@ const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513"; // Seu token fixo
 
 // 2. ROTA DE LEITURA (O seu painel/WhatsBulk lê aqui de segundo em segundo)
+// Esta rota está correta e não exige o token da Meta.
 app.get('/messages', (req, res) => {
   res.status(200).json(minhasMensagensSalvas);
 });
 
-// 3. ROTA DE VERIFICAÇÃO DO WHATSAPP (GET)
-app.get('/', (req, res) => {
+// 3. ROTA DE VERIFICAÇÃO DO WHATSAPP (GET /webhook)
+// O CAMINHO FOI ALTERADO DE '/' PARA '/webhook'
+app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -31,8 +33,9 @@ app.get('/', (req, res) => {
   res.status(403).send('Token de verificação inválido');
 });
 
-// 4. ROTA DE RECEBIMENTO DE MENSAGENS (POST)
-app.post('/', (req, res) => {
+// 4. ROTA DE RECEBIMENTO DE MENSAGENS (POST /webhook)
+// O CAMINHO FOI ALTERADO DE '/' PARA '/webhook'
+app.post('/webhook', (req, res) => {
   // Resposta obrigatória e imediata para a Meta
   res.status(200).send('EVENT_RECEIVED');
 
