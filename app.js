@@ -12,8 +12,8 @@ app.use(express.json());
 mongoose.set('strictQuery', true);
 const mongoURI = "mongodb+srv://Pratofit:002513@cluster0.ebf9rjf.mongodb.net/?appName=Cluster0";
 mongoose.connect(mongoURI)
-  .then(() => console.log("✅ Conectado ao MongoDB Atlas com sucesso!"))
-  .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err.message));
+  .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
+  .catch(err => console.error("❌ Erro MongoDB:", err.message));
 
 // 2. MODELO DE DADOS
 const MensagemSchema = new mongoose.Schema({
@@ -31,26 +31,24 @@ const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
-// --- FUNÇÃO MÁGICA: PEGAR O LINK DA IMAGEM ---
+// --- FUNÇÃO CORRIGIDA PARA PEGAR MÍDIA ---
 async function getMediaUrl(mediaId) {
     if (!META_ACCESS_TOKEN) {
-        console.error("TOKEN de acesso da Meta não configurado!");
+        console.error("❌ Erro: META_ACCESS_TOKEN não configurado nas variáveis de ambiente.");
         return null;
     }
     try {
         const response = await axios.get(`graph.facebook.com{mediaId}`, {
-            headers: {
-                'Authorization': `Bearer ${META_ACCESS_TOKEN}`
-            }
+            headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` }
         });
         return response.data.url;
     } catch (error) {
-        console.error("Erro ao obter URL da mídia:", error.message);
+        console.error("❌ Erro na API da Meta ao buscar mídia:", error.response?.data || error.message);
         return null;
     }
 }
 
-// 3. ROTAS DO SERVIDOR
+// 3. ROTAS
 
 app.get('/messages', async (req, res) => {
   try {
@@ -69,47 +67,53 @@ app.get('/webhook', (req, res) => {
   res.status(403).send('Token inválido');
 });
 
-// WEBHOOK: RECEBIMENTO E SALVAMENTO (AGORA COM SUPORTE A IMAGENS)
 app.post('/webhook', async (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
 
   try {
-    const body = req.body;
-    // LINHA CORRIGIDA: Removido o ponto extra antes de ?.
-    if (body.entry?.[0].changes?.[0].value.messages?.[0]) {
-      const value = body.entry[0].changes[0].value;
-      const msg = value.messages[0]; // Acessa o primeiro item da lista
-      const contact = value.contacts?.[0]; // Acessa o primeiro item da lista
+    // LINHA CORRIGIDA 1 e 2: Uso correto do optional chaining ?.
+    const messageData = req.body.entry?.[0].changes?.[0].value.messages?.[0];
+    const contact = req.body.entry?.[0].changes?.[0].value.contacts?.[0];
+
+    if (messageData) {
       
-      let textoMensagem = '';
-      if (msg.type === 'text') {
-          textoMensagem = msg.text.body;
-      } else if (msg.type === 'image') {
-          const imageUrl = await getMediaUrl(msg.image.id);
-          textoMensagem = imageUrl || '[Erro ao obter link da imagem]';
-      } else {
-          textoMensagem = `[Tipo: ${msg.type}]`;
+      let textoConteudo = '';
+      const tipo = messageData.type;
+
+      if (tipo === 'text') {
+          textoConteudo = messageData.text.body;
+      } 
+      else if (tipo === 'image') {
+          const url = await getMediaUrl(messageData.image.id);
+          textoConteudo = url || '[Link da Imagem Expirado ou Erro]';
+      } 
+      else if (tipo === 'audio' || tipo === 'voice') {
+          const mediaId = messageData.audio ? messageData.audio.id : messageData.voice.id;
+          const url = await getMediaUrl(mediaId);
+          textoConteudo = url || '[Link do Áudio Expirado ou Erro]';
+      }
+      else {
+          textoConteudo = `[Mídia do tipo: ${tipo}]`;
       }
 
       const novaMensagem = new Mensagem({
-        idMeta: msg.id,
-        telefone: msg.from,
-        nome: contact ? contact.profile.profile_pic : "Desconhecido", // Usei profile_pic para testar algo novo, ajuste se quiser o nome
-        texto: textoMensagem,
-        tipo: msg.type,
-        timestamp: msg.timestamp
+        idMeta: messageData.id,
+        telefone: messageData.from,
+        nome: contact ? contact.profile.name : "Desconhecido",
+        texto: textoConteudo,
+        tipo: tipo,
+        timestamp: messageData.timestamp
       });
 
       await novaMensagem.save();
-      console.log(`💾 Mensagem de ${novaMensagem.nome} salva. Tipo: ${msg.type}`);
+      console.log(`💾 Salvo: ${tipo} de ${novaMensagem.nome}`);
     }
   } catch (err) {
-    console.error("❌ Erro ao processar/salvar:", err.message);
+    console.error("❌ Erro no processamento:", err);
   }
 });
 
-// Inicialização
 app.listen(port, () => {
-  console.log(`🚀 Servidor 2026 rodando em: https://whatsapp-nrx3.onrender.com`);
+  console.log(`🚀 Servidor rodando na porta: ${port}`);
 });
 
