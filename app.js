@@ -40,50 +40,46 @@ app.get('/webhook', (req, res) => {
     console.log('✅ WEBHOOK VERIFICADO E ATIVO NA META!');
     return res.status(200).send(challenge);
   }
-  console.log('❌ TENTATIVA DE VERIFICAÇÃO COM TOKEN INVÁLIDO');
   res.status(403).send('Token de verificação inválido');
 });
 
-// 5. ROTA DE RECEBIMENTO DE MENSAGENS (Onde a mágica acontece)
+// 5. ROTA DE RECEBIMENTO DE MENSAGENS
 app.post('/webhook', (req, res) => {
-  // Responde imediatamente à Meta para evitar reenvios desnecessários
   res.status(200).send('EVENT_RECEIVED');
 
   try {
     const body = req.body;
 
-    // Log para debug caso nada chegue (descomente a linha abaixo se precisar ver o JSON bruto)
-    // console.log("JSON Bruto Recebido:", JSON.stringify(body, null, 2));
-
-    // Verificação precisa do caminho do objeto da Meta (entry[0] e changes[0])
     if (body.entry && 
         body.entry[0].changes && 
         body.entry[0].changes[0].value.messages && 
         body.entry[0].changes[0].value.messages[0]) {
       
       const msg = body.entry[0].changes[0].value.messages[0];
-      const metadata = body.entry[0].changes[0].value.contacts ? body.entry[0].changes[0].value.contacts[0] : null;
-      const nomeRemetente = metadata ? metadata.profile.name : "Desconhecido";
+      const contacts = body.entry[0].changes[0].value.contacts;
+      const nomeRemetente = contacts ? contacts[0].profile.name : "Desconhecido";
       
       const novaMensagem = {
         id: msg.id,
         de: msg.from,
+        telefone: msg.from,      // 🚀 CRUCIAL: O que seu front-end está procurando
+        wa_id: msg.from,         // 🚀 Adicional por compatibilidade
         nome: nomeRemetente,
         texto: msg.text ? msg.text.body : "Mídia ou Outro tipo",
         tipo: msg.type,
-        data: new Date().toLocaleString("pt-BR")
+        data: new Date().toLocaleString("pt-BR"),
+        timestamp: Math.floor(Date.now() / 1000) // Formato Unix que muitos front-ends usam
       };
 
-      // Adiciona ao início da lista (mais recentes primeiro)
+      // Adiciona ao início da lista
       minhasMensagensSalvas.unshift(novaMensagem);
 
-      // Mantém apenas as últimas 50 mensagens
+      // Mantém apenas as últimas 50
       if (minhasMensagensSalvas.length > 50) minhasMensagensSalvas.pop();
 
-      console.log(`📩 NOVA MENSAGEM: [${nomeRemetente} - ${novaMensagem.de}] disse: ${novaMensagem.texto}`);
+      console.log(`📩 MENSAGEM RECEBIDA: [${nomeRemetente}] - ${novaMensagem.texto}`);
     } else {
-      // Eventos de status (sent, delivered, read) caem aqui
-      console.log("ℹ️ Evento de status/sistema recebido (sem nova mensagem).");
+      console.log("ℹ️ Evento de status recebido.");
     }
   } catch (err) {
     console.error("❌ Erro ao processar o Webhook:", err.message);
@@ -94,4 +90,5 @@ app.post('/webhook', (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor Webhook 2026 Ativo na porta ${port}`);
 });
+
 
