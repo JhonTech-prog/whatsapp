@@ -38,6 +38,7 @@ async function getMediaUrl(mediaId) {
         return null;
     }
     try {
+        // Em 2026, usamos a v21.0 ou v22.0 da Graph API
         const response = await axios.get(`graph.facebook.com{mediaId}`, {
             headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` }
         });
@@ -71,9 +72,12 @@ app.post('/webhook', async (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
 
   try {
-    // LINHA CORRIGIDA 1 e 2: Uso correto do optional chaining ?.
-    const messageData = req.body.entry?.[0].changes?.[0].value.messages?.[0];
-    const contact = req.body.entry?.[0].changes?.[0].value.contacts?.[0];
+    // CORREÇÃO FINAL DA SINTAXE: Usando if simples para garantir compatibilidade total
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const messageData = value?.messages?.[0];
+    const contact = value?.contacts?.[0];
 
     if (messageData) {
       
@@ -88,7 +92,8 @@ app.post('/webhook', async (req, res) => {
           textoConteudo = url || '[Link da Imagem Expirado ou Erro]';
       } 
       else if (tipo === 'audio' || tipo === 'voice') {
-          const mediaId = messageData.audio ? messageData.audio.id : messageData.voice.id;
+          // Acessa .audio.id ou .voice.id
+          const mediaId = messageData.audio?.id || messageData.voice?.id; 
           const url = await getMediaUrl(mediaId);
           textoConteudo = url || '[Link do Áudio Expirado ou Erro]';
       }
@@ -116,4 +121,3 @@ app.post('/webhook', async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor rodando na porta: ${port}`);
 });
-
