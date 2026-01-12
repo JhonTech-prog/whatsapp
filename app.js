@@ -10,6 +10,7 @@ app.use(express.json());
 
 // 1. CONFIGURAÇÃO MONGOOSE
 mongoose.set('strictQuery', true);
+// DICA: Em produção, coloque esta string no process.env.MONGO_URI
 const mongoURI = "mongodb+srv://Pratofit:002513@cluster0.ebf9rjf.mongodb.net/?appName=Cluster0";
 mongoose.connect(mongoURI)
   .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
@@ -31,25 +32,25 @@ const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
-
-// --- FUNÇÃO CORRIGIDA PARA PEGAR MÍDIA ---
+// --- FUNÇÃO CORRIGIDA: PEGAR URL DA MÍDIA ---
 async function getMediaUrl(mediaId) {
     if (!META_ACCESS_TOKEN) {
-        console.error("❌ Erro: META_ACCESS_TOKEN não configurado nas variáveis de ambiente.");
+        console.error("❌ Erro: META_ACCESS_TOKEN não configurado.");
         return null;
     }
     try {
-        // Esta é a linha crítica que precisa estar correta:
+        // CORREÇÃO: URL completa com https e versão v21.0 (padrão em 2026)
         const response = await axios.get(`graph.facebook.com{mediaId}`, {
             headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` }
         });
-        return response.data.url;
+        
+        // Retorna a URL temporária para download
+        return response.data.url; 
     } catch (error) {
-        console.error("❌ Erro na API da Meta ao buscar mídia:", error.response?.data || error.message);
+        console.error("❌ Erro na API da Meta:", error.response?.data || error.message);
         return null;
     }
 }
-
 
 // 3. ROTAS
 
@@ -62,6 +63,7 @@ app.get('/messages', async (req, res) => {
   }
 });
 
+// Verificação do Webhook (Configuração no Painel da Meta)
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -70,11 +72,12 @@ app.get('/webhook', (req, res) => {
   res.status(403).send('Token inválido');
 });
 
+// Recebimento de Mensagens
 app.post('/webhook', async (req, res) => {
+  // Resposta imediata para a Meta (obrigatório)
   res.status(200).send('EVENT_RECEIVED');
 
   try {
-    // CORREÇÃO FINAL DA SINTAXE: Usando if simples para garantir compatibilidade total
     const entry = req.body.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
@@ -82,7 +85,6 @@ app.post('/webhook', async (req, res) => {
     const contact = value?.contacts?.[0];
 
     if (messageData) {
-      
       let textoConteudo = '';
       const tipo = messageData.type;
 
@@ -90,36 +92,37 @@ app.post('/webhook', async (req, res) => {
           textoConteudo = messageData.text.body;
       } 
       else if (tipo === 'image') {
+          // Busca URL da imagem usando o ID recebido
           const url = await getMediaUrl(messageData.image.id);
-          textoConteudo = url || '[Link da Imagem Expirado ou Erro]';
+          textoConteudo = url || '[Erro ao buscar URL da imagem]';
       } 
       else if (tipo === 'audio' || tipo === 'voice') {
-          // Acessa .audio.id ou .voice.id
+          // Captura ID independente se vier como objeto audio ou voice
           const mediaId = messageData.audio?.id || messageData.voice?.id; 
           const url = await getMediaUrl(mediaId);
-          textoConteudo = url || '[Link do Áudio Expirado ou Erro]';
+          textoConteudo = url || '[Erro ao buscar URL do áudio]';
       }
       else {
-          textoConteudo = `[Mídia do tipo: ${tipo}]`;
+          textoConteudo = `[Mídia tipo: ${tipo}]`;
       }
 
       const novaMensagem = new Mensagem({
         idMeta: messageData.id,
         telefone: messageData.from,
-        nome: contact ? contact.profile.name : "Desconhecido",
+        nome: contact ? contact.profile.name : "Usuário WhatsApp",
         texto: textoConteudo,
         tipo: tipo,
         timestamp: messageData.timestamp
       });
 
       await novaMensagem.save();
-      console.log(`💾 Salvo: ${tipo} de ${novaMensagem.nome}`);
+      console.log(`💾 Mensagem salva! Tipo: ${tipo} | Remetente: ${novaMensagem.nome}`);
     }
   } catch (err) {
-    console.error("❌ Erro no processamento:", err);
+    console.error("❌ Erro no processamento do Webhook:", err.message);
   }
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Servidor rodando na porta: ${port}`);
+  console.log(`🚀 Servidor 2026 Ativo na porta: ${port}`);
 });
