@@ -5,7 +5,7 @@ const axios = require('axios');
 
 const app = express();
 app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' })); // Aumentado para suportar Base64
+app.use(express.json({ limit: '50mb' }));
 
 // 1. CONFIGURAÇÃO MONGOOSE
 mongoose.set('strictQuery', true);
@@ -14,12 +14,12 @@ mongoose.connect(mongoURI)
   .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
   .catch(err => console.error("❌ Erro MongoDB:", err.message));
 
-// 2. MODELO DE DADOS (Atualizado para suportar mídias longas)
+// 2. MODELO DE DADOS
 const MensagemSchema = new mongoose.Schema({
   idMeta: String,
   telefone: String,
   nome: String,
-  texto: String, // Aqui salvaremos o texto ou o Base64 da mídia
+  texto: String, 
   tipo: String,
   timestamp: Number,
   dataRecebimento: { type: Date, default: Date.now }
@@ -28,40 +28,64 @@ const Mensagem = mongoose.model('Mensagem', MensagemSchema);
 
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
-const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
-// --- FUNÇÃO 1: PEGAR URL DA MÍDIA ---
+// --- FUNÇÃO GETMEDIAURL REVISADA (BLINDADA PARA NODE 22) ---
 async function getMediaUrl(mediaId) {
+    // 1. Limpeza rigorosa do Token (remove aspas e espaços acidentais)
+    const tokenRaw = process.env.META_ACCESS_TOKEN || "";
+    const tokenLimpo = tokenRaw.replace(/["']/g, "").trim();
+
+    if (!tokenLimpo) {
+        console.error("❌ Erro: META_ACCESS_TOKEN não configurado no Render.");
+        return null;
+    }
+
     try {
-        const idLimpo = String(mediaId).replace(/\s/g, '');
-        const urlFinal = new URL(`graph.facebook.com{idLimpo}`);
-        const response = await axios.get(urlFinal.href, {
-            headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN.trim()}` }
+        // 2. Limpeza do ID (remove qualquer coisa que não seja número ou letra)
+        const idLimpo = String(mediaId).replace(/[^a-zA-Z0-9]/g, '');
+        
+        // 3. Construção da URL manual para evitar erros de interpolação
+        const urlFinal = "graph.facebook.com" + idLimpo;
+        
+        console.log("🔗 Solicitando ID: " + idLimpo);
+
+        const response = await axios({
+            method: 'get',
+            url: urlFinal,
+            headers: { 
+                'Authorization': 'Bearer ' + tokenLimpo,
+                'Accept': 'application/json'
+            }
         });
+
         return response.data.url;
     } catch (error) {
-        console.error("❌ Erro ao obter URL:", error.message);
+        console.error("❌ Erro na API da Meta (v24.0):", error.message);
+        if (error.response) console.error("Detalhes da Meta:", error.response.data);
         return null;
     }
 }
 
-// --- FUNÇÃO 2: BAIXAR E CONVERTER PARA BASE64 (SALVAMENTO PERMANENTE) ---
+// --- FUNÇÃO DOWNLOAD (SALVAMENTO PERMANENTE) ---
 async function downloadMediaAsBase64(url) {
+    const tokenRaw = process.env.META_ACCESS_TOKEN || "";
+    const tokenLimpo = tokenRaw.replace(/["']/g, "").trim();
+
     try {
         const response = await axios.get(url, {
-            headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN.trim()}` },
+            headers: { 'Authorization': 'Bearer ' + tokenLimpo },
             responseType: 'arraybuffer'
         });
         const contentType = response.headers['content-type'];
         const base64 = Buffer.from(response.data, 'binary').toString('base64');
         return `data:${contentType};base64,${base64}`;
     } catch (error) {
-        console.error("❌ Erro no download do binário:", error.message);
+        console.error("❌ Erro no download do arquivo:", error.message);
         return null;
     }
 }
 
-// 3. ROTAS WEBHOOK
+// 3. ROTAS
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -90,18 +114,16 @@ app.post('/webhook', async (req, res) => {
       } 
       else if (tipo === 'image' || tipo === 'audio' || tipo === 'voice') {
           const midiaId = messageData.image?.id || messageData.audio?.id || messageData.voice?.id;
-          console.log(`📸 Processando mídia (${tipo})...`);
           
           const urlTemporaria = await getMediaUrl(midiaId);
           if (urlTemporaria) {
-              // DOWNLOAD REAL DO ARQUIVO
               const base64Data = await downloadMediaAsBase64(urlTemporaria);
-              conteudoParaSalvar = base64Data || `[Erro ao baixar binário da mídia]`;
+              conteudoParaSalvar = base64Data || `[Erro ao converter ${tipo}]`;
           } else {
-              conteudoParaSalvar = `[Erro ao obter URL da Meta]`;
+              conteudoParaSalvar = `[Erro na URL da Meta para ${tipo}]`;
           }
       } else {
-          conteudoParaSalvar = `[Mídia não suportada: ${tipo}]`;
+          conteudoParaSalvar = `[Mídia: ${tipo}]`;
       }
 
       const novaMensagem = new Mensagem({
@@ -117,7 +139,7 @@ app.post('/webhook', async (req, res) => {
       console.log(`💾 SALVO PERMANENTE: ${tipo} de ${nomeContato}`);
     }
   } catch (err) {
-    console.error("❌ Erro Geral:", err);
+    console.error("❌ Erro Geral Webhook:", err);
   }
 });
 
@@ -126,8 +148,8 @@ app.get('/messages', async (req, res) => {
       const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(50);
       res.status(200).json(mensagens);
     } catch (err) {
-      res.status(500).send("Erro ao buscar mensagens");
+      res.status(500).send("Erro ao buscar");
     }
 });
 
-app.listen(port, () => console.log(`🚀 Servidor 2026 Ativo | v24.0 | Porta: ${port}`));
+app.listen(port, () => console.log(`🚀 Servidor Ativo v24.0 | Porta: ${port}`));
