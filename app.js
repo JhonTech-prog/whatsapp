@@ -31,6 +31,7 @@ const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN; 
 
+
 // --- FUNÇÃO CORRIGIDA PARA PEGAR MÍDIA ---
 async function getMediaUrl(mediaId) {
     if (!META_ACCESS_TOKEN) {
@@ -38,7 +39,7 @@ async function getMediaUrl(mediaId) {
         return null;
     }
     try {
-        // Em 2026, usamos a v21.0 ou v22.0 da Graph API
+        // Esta é a linha crítica que precisa estar correta:
         const response = await axios.get(`graph.facebook.com{mediaId}`, {
             headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}` }
         });
@@ -48,6 +49,7 @@ async function getMediaUrl(mediaId) {
         return null;
     }
 }
+
 
 // 3. ROTAS
 
