@@ -2,74 +2,92 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
+// 1. CONFIGURAÇÕES INICIAIS
 app.use(cors({ origin: true }));
 app.use(express.json());
 app.set('trust proxy', 1);
 
 let minhasMensagensSalvas = [];
-const port = process.env.PORT || 10000;
-const verifyToken = "G3rPF002513";
 
-// 1. STATUS DO SERVIDOR
+const port = process.env.PORT || 10000;
+const verifyToken = "G3rPF002513"; // Certifique-se que este é o token no painel da Meta
+
+// 2. ROTA PRINCIPAL (Status)
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'Servidor Webhook 2026 Online',
     timestamp: new Date().toLocaleString("pt-BR"),
-    memoria: `${minhasMensagensSalvas.length} mensagens arquivadas`
+    memoria_mensagens: `${minhasMensagensSalvas.length} mensagens arquivadas`
   });
 });
 
-// 2. PAINEL DE LEITURA
+// 3. ROTA DE LEITURA (Para o seu Front-end)
 app.get('/messages', (req, res) => {
   res.status(200).json(minhasMensagensSalvas);
 });
 
-// 3. VERIFICAÇÃO COM A META (GET)
+// 4. VERIFICAÇÃO DO WHATSAPP (Aperto de mão)
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === verifyToken) {
-    console.log('✅ WEBHOOK ATIVO');
+    console.log('✅ WEBHOOK VERIFICADO COM SUCESSO!');
     return res.status(200).send(challenge);
   }
-  res.sendStatus(403);
+  res.status(403).send('Token inválido');
 });
 
-// 4. RECEBIMENTO DE MENSAGENS (POST)
+// 5. RECEBIMENTO DE MENSAGENS (Onde o erro ocorria)
 app.post('/webhook', (req, res) => {
-  // Resposta imediata para a Meta não reenviar o pacote
+  // Notifica a Meta que recebemos os dados (evita reenvios infinitos)
   res.status(200).send('EVENT_RECEIVED');
 
-  const body = req.body;
-
   try {
-    // A estrutura da Meta sempre vem dentro de entry[0].changes[0]
-    if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+    const body = req.body;
+
+    // A estrutura correta da Meta exige acessar o índice [0] dos arrays
+    if (body.entry && 
+        body.entry[0].changes && 
+        body.entry[0].changes[0].value.messages && 
+        body.entry[0].changes[0].value.messages[0]) {
+      
       const value = body.entry[0].changes[0].value;
       const msg = value.messages[0];
-      const contact = value.contacts?.[0];
+      const contact = value.contacts ? value.contacts[0] : null;
+      
+      const nomeRemetente = contact ? contact.profile.name : "Desconhecido";
+      let conteudoTexto = msg.text ? msg.text.body : `[Tipo: ${msg.type}]`;
 
       const novaMensagem = {
         id: msg.id,
         de: msg.from,
-        nome: contact?.profile?.name || "Desconhecido",
-        texto: msg.text?.body || `[Tipo: ${msg.type}]`,
+        telefone: msg.from,
+        nome: nomeRemetente,
+        texto: conteudoTexto,
         tipo: msg.type,
         data: new Date().toLocaleString("pt-BR"),
-        timestamp: msg.timestamp // Usando o timestamp original da Meta
+        timestamp: msg.timestamp || Math.floor(Date.now() / 1000)
       };
 
+      // Adiciona ao topo da lista
       minhasMensagensSalvas.unshift(novaMensagem);
+
+      // Mantém apenas as últimas 50 para não estourar a memória do Render
       if (minhasMensagensSalvas.length > 50) minhasMensagensSalvas.pop();
 
-      console.log(`📩 Nova mensagem de ${novaMensagem.nome}: ${novaMensagem.texto}`);
+      console.log(`📩 MENSAGEM DE: ${nomeRemetente} - CONTEÚDO: ${conteudoTexto}`);
+    } else {
+      // Ignora atualizações de status (lido, entregue, etc)
+      console.log("ℹ️ Evento recebido (Status/Outros), ignorando processamento.");
     }
   } catch (err) {
-    console.error("❌ Erro no processamento:", err.message);
+    console.error("❌ Erro ao processar o Webhook:", err.message);
   }
 });
 
-app.listen(port, () => console.log(`🚀 Webhook 2026 rodando na porta ${port}`));
-
+// Inicia o servidor
+app.listen(port, () => {
+  console.log(`🚀 Servidor Webhook 2026 Ativo na porta ${port}`);
+});
