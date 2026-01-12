@@ -50,6 +50,9 @@ app.post('/webhook', (req, res) => {
   try {
     const body = req.body;
 
+    // 🚀 NOVO: MOSTRA O JSON BRUTO PARA DEPURAR O PROBLEMA 🚀
+    console.log("JSON Bruto Recebido:", JSON.stringify(body, null, 2));
+
     if (body.entry && 
         body.entry.changes && 
         body.entry.changes.value.messages && 
@@ -79,7 +82,7 @@ app.post('/webhook', (req, res) => {
         telefone: msg.from,
         wa_id: msg.from,
         nome: nomeRemetente,
-        texto: conteudoTexto, // <-- AGORA COM O CONTEÚDO CORRETO
+        texto: conteudoTexto,
         tipo: msg.type,
         data: new Date().toLocaleString("pt-BR"),
         timestamp: Math.floor(Date.now() / 1000)
@@ -102,5 +105,3 @@ app.post('/webhook', (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor Webhook 2026 Ativo na porta ${port}`);
 });
-
-
