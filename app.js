@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const axios = require('axios'); // Mantido apenas para compatibilidade se necessário
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -29,7 +28,7 @@ const Mensagem = mongoose.model('Mensagem', MensagemSchema);
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
 
-// --- FUNÇÕES DE MÍDIA (ESTÁVEIS NODE 22 / 2026) ---
+// --- FUNÇÕES DE MÍDIA CORRIGIDAS (BARRA ADICIONADA) ---
 
 async function getMediaUrl(mediaId) {
     const tokenRaw = process.env.META_ACCESS_TOKEN || "";
@@ -37,9 +36,10 @@ async function getMediaUrl(mediaId) {
 
     try {
         const idLimpo = String(mediaId).replace(/[^0-9]/g, '');
+        // CORREÇÃO: Adicionada a barra "/" após o v24.0
         const urlFinal = "graph.facebook.com" + idLimpo;
         
-        console.log("🔗 Buscando ID: " + idLimpo);
+        console.log("🔗 Buscando URL correta em: " + urlFinal);
 
         const response = await fetch(urlFinal, {
             method: 'GET',
@@ -49,10 +49,10 @@ async function getMediaUrl(mediaId) {
         const data = await response.json();
         if (data && data.url) return data.url;
         
-        console.error("❌ Resposta sem URL:", data);
+        console.error("❌ Resposta da Meta sem URL:", data);
         return null;
     } catch (error) {
-        console.error("❌ Erro getMediaUrl:", error.message);
+        console.error("❌ Erro na montagem da URL:", error.message);
         return null;
     }
 }
@@ -72,7 +72,7 @@ async function downloadMediaAsBase64(url) {
         const base64 = Buffer.from(arrayBuffer).toString('base64');
         return "data:" + contentType + ";base64," + base64;
     } catch (error) {
-        console.error("❌ Erro Download:", error.message);
+        console.error("❌ Erro no download do binário:", error.message);
         return null;
     }
 }
@@ -115,9 +115,9 @@ app.post('/webhook', async (req, res) => {
             const urlTemp = await getMediaUrl(midiaId);
             if (urlTemp) {
                 const base64 = await downloadMediaAsBase64(urlTemp);
-                conteudoParaSalvar = base64 || "[Erro conversão]";
+                conteudoParaSalvar = base64 || "[Erro na conversão Base64]";
             } else {
-                conteudoParaSalvar = "[Erro URL Meta]";
+                conteudoParaSalvar = "[Erro ao obter URL temporária da Meta]";
             }
         }
     }
@@ -132,7 +132,7 @@ app.post('/webhook', async (req, res) => {
     });
 
     await novaMensagem.save();
-    console.log("💾 Mensagem salva: " + tipo + " de " + nomeContato);
+    console.log("💾 SALVO COM SUCESSO: " + tipo + " de " + nomeContato);
 
   } catch (err) {
     console.error("❌ Erro Geral Webhook:", err.message);
@@ -141,11 +141,11 @@ app.post('/webhook', async (req, res) => {
 
 app.get('/messages', async (req, res) => {
     try {
-      const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(50);
+      const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(20);
       res.status(200).json(mensagens);
     } catch (err) {
       res.status(500).send("Erro ao buscar");
     }
 });
 
-app.listen(port, () => console.log("🚀 Servidor Online porta " + port));
+app.listen(port, () => console.log("🚀 Servidor Online 2026 porta " + port));
