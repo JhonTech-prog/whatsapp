@@ -23,7 +23,7 @@ const MensagemSchema = new mongoose.Schema({
   timestamp: Number,
   dataRecebimento: { type: Date, default: Date.now }
 });
-const Mensagem = mongoose.model('Mensagem', MensagemSchema);
+const Mensagem = mongoose.model('Mensagem', MensagemSchema, 'mensagems');
 
 const port = process.env.PORT || 10000;
 const verifyToken = "G3rPF002513";
