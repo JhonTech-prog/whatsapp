@@ -1,3 +1,12 @@
+// Endpoint para listar todas as mensagens da coleção mensagems
+app.get('/mensagems', async (req, res) => {
+  try {
+    const mensagens = await Mensagem.find();
+    res.json(mensagens);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar mensagens' });
+  }
+});
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
