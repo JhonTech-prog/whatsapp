@@ -78,8 +78,10 @@ async function downloadMediaAsBase64(url) {
 	});
 
 // Endpoint para buscar contatos únicos a partir das mensagens
+// Endpoint para buscar contatos únicos a partir das mensagens
 app.get('/contacts-from-messages', async (req, res) => {
   try {
+    // Agrupa por telefone e pega o primeiro nome encontrado para cada telefone
     const contatos = await Mensagem.aggregate([
       {
         $group: {
@@ -95,9 +97,11 @@ app.get('/contacts-from-messages', async (req, res) => {
         }
       }
     ]);
+    // Retorna o array de contatos
     res.json(contatos);
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar contatos' });
+    // Em caso de erro, retorna status 500 e mensagem de erro
+    res.status(500).json({ error: 'Erro ao buscar contatos', details: err.message });
   }
 });
 
