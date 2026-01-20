@@ -36,8 +36,8 @@ async function getMediaUrl(mediaId) {
 
     try {
         const idLimpo = String(mediaId).replace(/[^0-9]/g, '');
-        // CORREÇÃO: Adicionada a barra "/" após o v24.0
-        const urlFinal = "graph.facebook.com" + idLimpo;
+        // CORREÇÃO: Adicionada a URL correta com https://, versão da API e barra
+        const urlFinal = "https://graph.facebook.com/v19.0/" + idLimpo;
         
         console.log("🔗 Buscando URL correta em: " + urlFinal);
 
