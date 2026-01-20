@@ -1,3 +1,11 @@
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+
+const app = express();
+app.use(cors({ origin: true }));
+app.use(express.json({ limit: '50mb' }));
+
 // Endpoint para listar todas as mensagens da coleção mensagems
 app.get('/mensagems', async (req, res) => {
   try {
@@ -7,13 +15,6 @@ app.get('/mensagems', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar mensagens' });
   }
 });
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-
-const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' }));
 
 // 1. CONFIGURAÇÃO MONGOOSE
 mongoose.set('strictQuery', true);
