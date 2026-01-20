@@ -62,10 +62,34 @@ async function downloadMediaAsBase64(url) {
     const tokenLimpo = tokenRaw.replace(/["']/g, "").trim();
 
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: { 'Authorization': 'Bearer ' + tokenLimpo }
-        });
+	const response = await fetch(url, {
+		method: 'GET',
+		headers: { 'Authorization': 'Bearer ' + tokenLimpo }
+	});
+
+// Endpoint para buscar contatos únicos a partir das mensagens
+app.get('/contacts-from-messages', async (req, res) => {
+  try {
+    const contatos = await Mensagem.aggregate([
+      {
+        $group: {
+          _id: "$telefone",
+          nome: { $first: "$nome" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          phone: "$_id",
+          name: "$nome"
+        }
+      }
+    ]);
+    res.json(contatos);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar contatos' });
+  }
+});
 
         const arrayBuffer = await response.arrayBuffer();
         const contentType = response.headers.get('content-type') || 'image/jpeg';
