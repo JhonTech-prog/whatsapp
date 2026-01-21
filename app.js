@@ -1,3 +1,13 @@
+// Endpoint para envio de mensagens do frontend para o backend
+app.post('/send-message', async (req, res) => {
+  const { to, text } = req.body;
+  if (!to || !text) {
+    return res.status(400).json({ success: false, error: "Campos 'to' e 'text' são obrigatórios." });
+  }
+  // Aqui você implementaria o envio para a API da Meta/WhatsApp
+  // Por enquanto, só retorna sucesso para teste:
+  return res.json({ success: true, to, text });
+});
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
