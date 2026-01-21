@@ -8,14 +8,44 @@ app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
 // Endpoint para envio de mensagens do frontend para o backend
+const fetch = require('node-fetch');
 app.post('/send-message', async (req, res) => {
   const { to, text } = req.body;
   if (!to || !text) {
     return res.status(400).json({ success: false, error: "Campos 'to' e 'text' são obrigatórios." });
   }
-  // Aqui você implementaria o envio para a API da Meta/WhatsApp
-  // Por enquanto, só retorna sucesso para teste:
-  return res.json({ success: true, to, text });
+
+  // Substitua pelo seu phone_number_id real
+  const phoneNumberId = process.env.PHONE_NUMBER_ID || "<SEU_PHONE_NUMBER_ID>";
+  const accessToken = process.env.META_ACCESS_TOKEN;
+
+  try {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body: text }
+      })
+    });
+
+    const data = await response.json();
+    if (data.messages && data.messages[0] && data.messages[0].id) {
+      return res.json({ success: true, messageId: data.messages[0].id });
+    } else {
+      // Log detalhado para debug
+      console.error("Erro ao enviar para WhatsApp:", data);
+      return res.status(500).json({ success: false, error: data.error ? data.error.message : "Erro desconhecido" });
+    }
+  } catch (err) {
+    console.error("Erro no envio para WhatsApp:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Endpoint para listar todas as mensagens da coleção mensagems
