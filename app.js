@@ -2,16 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 
-const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' }));
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-
-const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' }));
 
 // Endpoint para envio de mensagens do frontend para o backend
 app.post('/send-message', async (req, res) => {
