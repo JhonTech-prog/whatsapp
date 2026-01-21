@@ -8,7 +8,6 @@ app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
 // Endpoint para envio de mensagens do frontend para o backend
-const fetch = require('node-fetch');
 app.post('/send-message', async (req, res) => {
   const { to, text } = req.body;
   if (!to || !text) {
