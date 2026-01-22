@@ -245,7 +245,7 @@ app.post('/webhook', async (req, res) => {
 // Endpoint para buscar mensagens por phoneId (telefone)
 app.get('/messages', async (req, res) => {
     try {
-      const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(20);
+      const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 });
       res.status(200).json(mensagens);
     } catch (err) {
       res.status(500).send("Erro ao buscar");
