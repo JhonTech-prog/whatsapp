@@ -1,11 +1,51 @@
+// ...existing code...
+// ...existing code...
 
+console.log('Node.js version:', process.version);
 const express = require('express');
+const fetch = require('node-fetch');
 const cors = require('cors');
 const mongoose = require('mongoose');
-
 const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' }));
+// ...existing code...
+// ...existing code...
+app.use(cors());
+app.use(express.json());
+
+// Endpoint unificado para histórico do chat
+app.get('/api/chat/historico', async (req, res) => {
+  try {
+    // Opcional: permitir filtro por telefone (contato)
+    const { phoneId } = req.query;
+    let filtro = {};
+    if (phoneId) {
+      filtro = { telefone: phoneId };
+    }
+    // Busca todas as mensagens (enviadas e recebidas) desse contato
+    const mensagens = await Mensagem.find(filtro);
+    // Padroniza o campo de data para ISO 8601
+    const historico = mensagens.map(msg => {
+      // Usa dataRecebimento se existir, senão converte timestamp
+      let dataISO = msg.dataRecebimento
+        ? new Date(msg.dataRecebimento).toISOString()
+        : new Date(msg.timestamp * 1000).toISOString();
+      return {
+        ...msg.toObject(),
+        dataISO,
+        senderType: msg.fromMe ? 'sent' : 'received'
+      };
+    });
+    // Ordena pelo campo dataISO
+    historico.sort((a, b) => new Date(a.dataISO) - new Date(b.dataISO));
+    res.json(historico);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar histórico', details: err.message });
+  }
+});
+
+// ...existing code...
+app.use(cors());
+app.use(express.json());
 
 // Endpoint para envio de mensagens do frontend para o backend
 app.post('/send-message', async (req, res) => {
@@ -35,7 +75,24 @@ app.post('/send-message', async (req, res) => {
 
     const data = await response.json();
     if (data.messages && data.messages[0] && data.messages[0].id) {
-      return res.json({ success: true, messageId: data.messages[0].id });
+      // Salvar mensagem enviada no banco e retornar o objeto completo
+      try {
+        const novaMensagem = new Mensagem({
+          idMeta: data.messages[0].id,
+          telefone: to,
+          nome: "Você", // ou personalize conforme necessário
+          texto: text,
+          tipo: "text",
+          timestamp: Math.floor(Date.now() / 1000),
+          fromMe: true
+        });
+        const mensagemSalva = await novaMensagem.save();
+        console.log("💾 Mensagem enviada salva no banco");
+        return res.json({ success: true, message: mensagemSalva });
+      } catch (err) {
+        console.error("❌ Erro ao salvar mensagem enviada:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
+      }
     } else {
       // Log detalhado para debug
       console.error("Erro ao enviar para WhatsApp:", data);
@@ -218,13 +275,19 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// Endpoint para buscar mensagens por phoneId (telefone)
 app.get('/messages', async (req, res) => {
-    try {
-      const mensagens = await Mensagem.find().sort({ dataRecebimento: -1 }).limit(20);
-      res.status(200).json(mensagens);
-    } catch (err) {
-      res.status(500).send("Erro ao buscar");
+  try {
+    const { phoneId } = req.query;
+    let filtro = {};
+    if (phoneId) {
+      filtro = { telefone: phoneId };
     }
+    const mensagens = await Mensagem.find(filtro).sort({ dataRecebimento: -1 });
+    res.status(200).json(mensagens);
+  } catch (err) {
+    res.status(500).send("Erro ao buscar");
+  }
 });
 
-app.listen(port, () => console.log("🚀 Servidor Online 2026 porta " + port));
+app.listen(port, '0.0.0.0', () => console.log("🚀 Servidor Online 2026 porta " + port));
